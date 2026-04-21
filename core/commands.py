@@ -13,3 +13,4 @@ class PlayerCommand:
     shoot: bool = False
     hyperspace: bool = False
     shield: bool = False
+    shotgun: bool = False
