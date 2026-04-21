@@ -1,7 +1,7 @@
 """Game systems (World, waves, score)."""
 
 import math
-from random import uniform
+from random import uniform, choice
 from typing import Dict
 
 import pygame as pg
@@ -9,7 +9,7 @@ import pygame as pg
 from core import config as C
 from core.collisions import CollisionManager
 from core.commands import PlayerCommand
-from core.entities import Asteroid, BlackHole, Ship, UFO
+from core.entities import Asteroid, BlackHole, Ship, UFO, PowerUp, EnumPowerUps
 from core.utils import Vec, rand_edge_pos
 
 PlayerId = int
@@ -28,6 +28,7 @@ class World:
         self.bullets = pg.sprite.Group()
         self.asteroids = pg.sprite.Group()
         self.ufos = pg.sprite.Group()
+        self.powerups = pg.sprite.Group()
         self.black_holes = pg.sprite.Group()
         self.all_sprites = pg.sprite.Group()
 
@@ -100,6 +101,14 @@ class World:
 
         self.all_sprites.add(ufo)
 
+    def spawn_random_powerup(self, pos: Vec):
+        powerup = choice([pw.name for pw in EnumPowerUps])
+        self.spawn_power_up(pos, powerup)
+
+    def spawn_power_up(self, pos: Vec, power_up: str):
+        pw_up = PowerUp(pos, power_up)
+        self.powerups.add(pw_up)
+        self.all_sprites.add(pw_up)
     def spawn_black_hole(self) -> None:
         """Spawn a black hole at a random position, not too close to ships."""
         ship_positions = [s.pos for s in self.ships.values()]
@@ -233,7 +242,7 @@ class World:
 
     def _handle_collisions(self) -> None:
         result = self._collision_mgr.resolve(
-            self.ships, self.bullets, self.asteroids, self.ufos, self.black_holes,
+            self.ships, self.bullets, self.asteroids, self.ufos, self.black_holes,  self.powerups
         )
 
         self.events.extend(result.events)
@@ -241,6 +250,12 @@ class World:
         for player_id, delta in result.score_deltas.items():
             if player_id in self.scores:
                 self.scores[player_id] += delta
+
+        for ufo in result.ufo_deaths:
+            self.spawn_random_powerup(ufo.pos)
+
+        for powerup, ship in result.powerups_to_apply:
+            self._apply_powerup(powerup, ship)
 
         for pos, vel, size in result.asteroids_to_spawn:
             self.spawn_asteroid(pos, vel, size)
@@ -267,6 +282,11 @@ class World:
         if all(v <= 0 for v in self.lives.values()):
             self.game_over = True
 
+    def _apply_powerup(self, powerup: PowerUp, ship: Ship):
+        powerup_type = powerup.type
+        if powerup_type == "ONE_UP":
+            pid = ship.player_id
+            self.lives[pid] += 1
     def _ship_die_instant(self, ship: Ship) -> None:
         """Instant Game Over: remaining lives are forfeit (black hole)."""
         pid = ship.player_id

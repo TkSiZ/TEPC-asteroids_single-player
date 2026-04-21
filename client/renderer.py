@@ -5,8 +5,9 @@ import math
 import pygame as pg
 
 from core import config as C
-from core.entities import Asteroid, BlackHole, Bullet, Ship, UFO
+from core.entities import Asteroid, BlackHole, Bullet, Ship, UFO, PowerUp
 from core.scene import SceneState
+from core.utils import draw_image
 
 
 class Renderer:
@@ -29,6 +30,7 @@ class Renderer:
             Asteroid: self._draw_asteroid,
             Ship: self._draw_ship,
             UFO: self._draw_ufo,
+            PowerUp: self._draw_powerup,
             BlackHole: self._draw_black_hole,
         }
 
@@ -188,6 +190,9 @@ class Renderer:
         cup.center = (int(ufo.pos.x), int(ufo.pos.y - height * 0.3))
         pg.draw.ellipse(self.screen, self.config.WHITE, cup, width=1)
 
+    def _draw_powerup(self, powerup: PowerUp):
+        draw_image(self.screen, powerup.pos, powerup.image)
+        # pg.draw.rect(surf, C.WHITE, self.rect, width=1)
     def _draw_shield_bar(self, ship) -> None:
         bar_x      = 10
         bar_y      = 36        
