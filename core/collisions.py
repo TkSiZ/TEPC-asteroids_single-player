@@ -115,6 +115,8 @@ class CollisionManager:
         result: CollisionResult,
     ) -> None:
         for ship in ships.values():
+            if ship.invuln > 0.0 or ship.shield_active: 
+                continue
             if ship.invuln > 0.0:
                 continue
             for ast in asteroids:
@@ -129,6 +131,8 @@ class CollisionManager:
         result: CollisionResult,
     ) -> None:
         for ship in ships.values():
+            if ship.invuln > 0.0 or ship.shield_active: 
+                continue
             if ship.invuln > 0.0:
                 continue
             for bullet in list(bullets):

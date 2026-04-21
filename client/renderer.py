@@ -45,6 +45,7 @@ class Renderer:
         lives: int,
         wave: int,
         state: SceneState,
+        ship = None
     ) -> None:
         if state != SceneState.PLAY:
             return
@@ -52,6 +53,9 @@ class Renderer:
         text = f"SCORE {score:06d}   LIVES {lives}   WAVE {wave}"
         label = self.font.render(text, True, self.config.WHITE)
         self.screen.blit(label, (10, 10))
+
+        if ship is not None:
+            self._draw_shield_bar(ship)
 
     def draw_menu(self) -> None:
         self._draw_text(
@@ -118,6 +122,10 @@ class Renderer:
         ]
         pg.draw.polygon(self.screen, self.config.WHITE, points, width=1)
 
+        if ship.shield_active:
+            center = (int(ship.pos.x), int(ship.pos.y))
+            pg.draw.circle(self.screen, self.config.WHITE, center, ship.r + 10, width=2)
+
         if ship.invuln > 0.0 and int(ship.invuln * 10) % 2 == 0:
             center = (int(ship.pos.x), int(ship.pos.y))
             pg.draw.circle(
@@ -139,3 +147,26 @@ class Renderer:
         cup = pg.Rect(0, 0, int(width * 0.5), int(height * 0.7))
         cup.center = (int(ufo.pos.x), int(ufo.pos.y - height * 0.3))
         pg.draw.ellipse(self.screen, self.config.WHITE, cup, width=1)
+
+    def _draw_shield_bar(self, ship) -> None:
+        bar_x      = 10
+        bar_y      = 36        
+        bar_width  = 120
+        bar_height = 8
+
+        ratio = ship.shield_energy / self.config.SHIELD_MAX_ENERGY
+        fill  = int(bar_width * ratio)
+
+        pg.draw.rect(self.screen, (80, 80, 80),
+                    (bar_x, bar_y, bar_width, bar_height))
+
+        if fill > 0:
+            color = self.config.WHITE if not ship.shield_active else (100, 180, 255)
+            pg.draw.rect(self.screen, color,
+                        (bar_x, bar_y, fill, bar_height))
+
+        pg.draw.rect(self.screen, self.config.WHITE,
+                    (bar_x, bar_y, bar_width, bar_height), width=1)
+
+        label = self.font.render("SH", True, self.config.WHITE)
+        self.screen.blit(label, (bar_x + bar_width + 6, bar_y - 4))

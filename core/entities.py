@@ -93,6 +93,8 @@ class Ship(pg.sprite.Sprite):
         self.target_pos: Vec | None = None
         self.invuln = 0.0
         self.r = int(C.SHIP_RADIUS)
+        self.shield_energy = float(C.SHIELD_MAX_ENERGY)
+        self.shield_activate = False
         self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
 
     def apply_command(
@@ -101,6 +103,11 @@ class Ship(pg.sprite.Sprite):
         dt: float,
         bullets: pg.sprite.Group,
     ) -> "Bullet | None":
+        
+        if cmd.shield and self.shield_energy >= C.SHIELD_MIN_ACTIVATE:
+            self.shield_active = True
+        else:
+            self.shield_active = False
         if cmd.rotate_left and not cmd.rotate_right:
             self.angle -= C.SHIP_TURN_SPEED * dt
         elif cmd.rotate_right and not cmd.rotate_left:
@@ -141,6 +148,13 @@ class Ship(pg.sprite.Sprite):
         self.invuln = float(C.SAFE_SPAWN_TIME)
 
     def update(self, dt: float) -> None:
+        if self.shield_active:
+            self.shield_energy = max(0.0, self.shield_energy - C.SHIELD_DRAIN_RATE * dt)
+            if self.shield_energy == 0.0:
+                self.shield_active = False
+        else:
+            self.shield_energy = min(C.SHIELD_MAX_ENERGY, self.shield_energy + C.SHIELD_RECHARGE_RATE * dt)
+            
         if self.cool > 0.0:
             self.cool -= dt
             if self.cool < 0.0:
