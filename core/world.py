@@ -16,12 +16,7 @@ PlayerId = int
 
 
 class World:
-    """World state and game rules.
-
-    Multiplayer-ready:
-    - World receives commands indexed by player_id.
-    - World generates events (strings) for the client (sounds/effects).
-    """
+    """World state and game rules."""
 
     def __init__(self) -> None:
         self.ships: Dict[PlayerId, Ship] = {}
@@ -47,7 +42,6 @@ class World:
         self.events.clear()
 
     def reset(self) -> None:
-        """Reset the world (used on Game Over)."""
         self.__init__()
 
     def spawn_player(self, player_id: PlayerId) -> None:
@@ -65,6 +59,10 @@ class World:
 
     def start_wave(self) -> None:
         self.wave += 1
+
+        for ship in self.ships.values():
+            ship.shotgun_available = True
+
         count = C.WAVE_BASE_COUNT + self.wave
 
         ship_positions = [s.pos for s in self.ships.values()]
@@ -93,7 +91,6 @@ class World:
         target = self._get_nearest_ship_pos(pos)
         ufo = UFO(pos, small, target_pos=target)
         self.ufos.add(ufo)
-
         self.all_sprites.add(ufo)
 
     def update(
@@ -130,10 +127,16 @@ class World:
                     0, self.scores[player_id] - C.HYPERSPACE_COST
                 )
 
-            bullet = ship.apply_command(cmd, dt, self.bullets)
-            if bullet is not None:
-                self.bullets.add(bullet)
-                self.all_sprites.add(bullet)
+            result = ship.apply_command(cmd, dt, self.bullets)
+
+            if isinstance(result, list):
+                for b in result:
+                    self.bullets.add(b)
+                    self.all_sprites.add(b)
+                    self.events.append("player_shoot")
+            elif result is not None:
+                self.bullets.add(result)
+                self.all_sprites.add(result)
                 self.events.append("player_shoot")
 
     def _update_ufos(self, dt: float) -> None:
@@ -154,7 +157,6 @@ class World:
                 self.ufos.remove(ufo)
 
     def _get_nearest_ship_pos(self, from_pos: Vec) -> Vec | None:
-        """Return position of the nearest living ship to from_pos."""
         nearest = None
         min_dist = float("inf")
         for ship in self.ships.values():
