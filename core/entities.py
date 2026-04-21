@@ -327,3 +327,57 @@ class UFO(pg.sprite.Sprite):
         self.cool = float(rate)
 
         return Bullet(UFO_BULLET_OWNER, self.pos, vel, ttl=ttl)
+
+
+class BlackHole(pg.sprite.Sprite):
+    """Black hole hazard.
+
+    - Cannot be hit or destroyed (bullets and asteroids ignore it).
+    - Exists for a short, random lifetime (see config).
+    - Applies a gravitational pull on ships within its influence radius,
+      stronger the closer the ship is.
+    - Touching it (within event-horizon radius) is instant Game Over.
+    """
+
+    def __init__(self, pos: Vec, lifetime: float) -> None:
+        super().__init__()
+        self.pos = Vec(pos)
+        self.lifetime = float(lifetime)
+        self.age = 0.0
+        self.r = int(C.BLACK_HOLE_RADIUS)
+        self.influence_r = float(C.BLACK_HOLE_INFLUENCE_RADIUS)
+        self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
+        self.rect.center = (int(self.pos.x), int(self.pos.y))
+
+    def update(self, dt: float) -> None:
+        self.age += dt
+        if self.age >= self.lifetime:
+            self.kill()
+            return
+        self.rect.center = (int(self.pos.x), int(self.pos.y))
+
+    def pull_acceleration(self, target_pos: Vec) -> Vec:
+        """Return the acceleration vector the black hole applies on a point.
+
+        Force grows as the target approaches, following an inverse-square-like
+        falloff, capped at BLACK_HOLE_MAX_FORCE. Returns a zero vector if the
+        target is outside the influence radius.
+        """
+        to_hole = self.pos - target_pos
+        dist = to_hole.length()
+
+        if dist >= self.influence_r:
+            return Vec(0, 0)
+
+        # Avoid singularity when the ship is essentially on top of the hole.
+        # The collision check will handle this frame.
+        safe_dist = max(dist, float(self.r))
+
+        # Inverse-square falloff with a cap.
+        mag = C.BLACK_HOLE_PULL_STRENGTH / (safe_dist * safe_dist) * 10000.0
+        mag = min(mag, C.BLACK_HOLE_MAX_FORCE)
+
+        if dist < 1e-6:
+            return Vec(0, 0)
+
+        return to_hole.normalize() * mag

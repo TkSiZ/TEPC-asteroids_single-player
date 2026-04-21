@@ -6,7 +6,7 @@ from random import uniform
 import pygame as pg
 
 from core import config as C
-from core.entities import Asteroid, Bullet, Ship, UFO, UFO_BULLET_OWNER, PlayerId
+from core.entities import Asteroid, BlackHole, Bullet, Ship, UFO, UFO_BULLET_OWNER, PlayerId
 from core.utils import Vec, rand_unit_vec
 
 
@@ -18,6 +18,7 @@ class CollisionResult:
     score_deltas: dict[PlayerId, int] = field(default_factory=dict)
     ship_deaths: list[PlayerId] = field(default_factory=list)
     asteroids_to_spawn: list[tuple[Vec, Vec, str]] = field(default_factory=list)
+    instant_deaths: list[PlayerId] = field(default_factory=list)
 
 
 class CollisionManager:
@@ -29,6 +30,7 @@ class CollisionManager:
         bullets: pg.sprite.Group,
         asteroids: pg.sprite.Group,
         ufos: pg.sprite.Group,
+        black_holes: pg.sprite.Group | None = None,
     ) -> CollisionResult:
         result = CollisionResult()
         self._bullets_vs_asteroids(bullets, asteroids, result)
@@ -36,6 +38,8 @@ class CollisionManager:
         self._ufo_vs_asteroids(ufos, asteroids, result)
         self._ship_vs_asteroids(ships, asteroids, result)
         self._ship_vs_ufo_bullets(ships, bullets, result)
+        if black_holes is not None:
+            self._ship_vs_black_holes(ships, black_holes, result)
         return result
 
     def _bullets_vs_asteroids(
@@ -141,6 +145,23 @@ class CollisionManager:
                 if (bullet.pos - ship.pos).length() < (bullet.r + ship.r):
                     bullet.kill()
                     result.ship_deaths.append(ship.player_id)
+                    return
+
+    def _ship_vs_black_holes(
+        self,
+        ships: dict[PlayerId, Ship],
+        black_holes: pg.sprite.Group,
+        result: CollisionResult,
+    ) -> None:
+        """Touching a black hole = instant Game Over.
+
+        Ignores shield and invulnerability by design.
+        """
+        for ship in ships.values():
+            for bh in black_holes:
+                if (bh.pos - ship.pos).length() < (bh.r + ship.r):
+                    result.instant_deaths.append(ship.player_id)
+                    result.events.append("ship_explosion")
                     return
 
     def _split_asteroid(
