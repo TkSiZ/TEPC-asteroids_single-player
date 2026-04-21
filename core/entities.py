@@ -97,17 +97,32 @@ class Ship(pg.sprite.Sprite):
         self.shield_activate = False
         self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
 
+        self.shotgun_active = 0.0
+        self.shotgun_available = True
+
+    def activate_shotgun(self):
+        if self.shotgun_available:
+            self.shotgun_active = 5.0
+            self.shotgun_available = False
+
+    def has_shotgun(self):
+        return self.shotgun_active > 0
+
     def apply_command(
         self,
         cmd: PlayerCommand,
         dt: float,
         bullets: pg.sprite.Group,
-    ) -> "Bullet | None":
-        
+    ) -> "Bullet | list[Bullet] | None":
+
+        if cmd.shotgun:
+            self.activate_shotgun()
+
         if cmd.shield and self.shield_energy >= C.SHIELD_MIN_ACTIVATE:
             self.shield_active = True
         else:
             self.shield_active = False
+
         if cmd.rotate_left and not cmd.rotate_right:
             self.angle -= C.SHIP_TURN_SPEED * dt
         elif cmd.rotate_right and not cmd.rotate_left:
@@ -123,7 +138,7 @@ class Ship(pg.sprite.Sprite):
 
         return None
 
-    def _try_fire(self, bullets: pg.sprite.Group) -> "Bullet | None":
+    def _try_fire(self, bullets: pg.sprite.Group):
         if self.cool > 0.0:
             return None
 
@@ -137,8 +152,22 @@ class Ship(pg.sprite.Sprite):
 
         dirv = angle_to_vec(self.angle)
         pos = self.pos + dirv * (self.r + C.BULLET_SPAWN_OFFSET)
-        vel = self.vel + dirv * C.SHIP_BULLET_SPEED
 
+        if self.has_shotgun():
+            self.cool = float(C.SHIP_FIRE_RATE * 0.5)
+
+            angles = [-15, -5, 5, 15]
+            bullets_created = []
+
+            for offset in angles:
+                new_dir = angle_to_vec(self.angle + offset)
+                new_vel = self.vel + new_dir * (C.SHIP_BULLET_SPEED * 1.3)
+                bullet = Bullet(self.player_id, pos, new_vel, ttl=C.BULLET_TTL)
+                bullets_created.append(bullet)
+
+            return bullets_created
+
+        vel = self.vel + dirv * C.SHIP_BULLET_SPEED
         self.cool = float(C.SHIP_FIRE_RATE)
         return Bullet(self.player_id, pos, vel, ttl=C.BULLET_TTL)
 
@@ -148,13 +177,18 @@ class Ship(pg.sprite.Sprite):
         self.invuln = float(C.SAFE_SPAWN_TIME)
 
     def update(self, dt: float) -> None:
+        if self.shotgun_active > 0:
+            self.shotgun_active -= dt
+            if self.shotgun_active < 0:
+                self.shotgun_active = 0.0
+
         if self.shield_active:
             self.shield_energy = max(0.0, self.shield_energy - C.SHIELD_DRAIN_RATE * dt)
             if self.shield_energy == 0.0:
                 self.shield_active = False
         else:
             self.shield_energy = min(C.SHIELD_MAX_ENERGY, self.shield_energy + C.SHIELD_RECHARGE_RATE * dt)
-            
+
         if self.cool > 0.0:
             self.cool -= dt
             if self.cool < 0.0:
@@ -170,7 +204,6 @@ class Ship(pg.sprite.Sprite):
         self.rect.center = (int(self.pos.x), int(self.pos.y))
 
     def ship_points(self) -> tuple[Vec, Vec, Vec]:
-        """Return the 3 vertices of the ship triangle."""
         dirv = angle_to_vec(self.angle)
         left = angle_to_vec(self.angle + C.SHIP_NOSE_ANGLE)
         right = angle_to_vec(self.angle - C.SHIP_NOSE_ANGLE)
