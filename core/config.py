@@ -53,6 +53,18 @@ UFO_FIRE_RATE_SMALL = 0.55
 UFO_BULLET_SPEED = 360.0
 UFO_BULLET_TTL = 1.3
 
+# Black hole constants
+
+BLACK_HOLE_SPAWN_EVERY_MIN = 15.0    # seconds between black hole spawns (min)
+BLACK_HOLE_SPAWN_EVERY_MAX = 25.0    # seconds between black hole spawns (max)
+BLACK_HOLE_LIFETIME_MIN = 5.0        # visible duration (min)
+BLACK_HOLE_LIFETIME_MAX = 10.0       # visible duration (max)
+BLACK_HOLE_RADIUS = 16               # collision / event horizon radius (lethal)
+BLACK_HOLE_INFLUENCE_RADIUS = 260    # max distance at which pull is applied
+BLACK_HOLE_PULL_STRENGTH = 900.0     # tuning constant for inverse-square pull
+BLACK_HOLE_MIN_SPAWN_DIST = 120      # min spawn distance from any ship
+BLACK_HOLE_MAX_FORCE = 1200.0        # cap on pull acceleration (px/s^2)
+
 # Power ups constants 
 
 SHIELD_MAX_ENERGY     = 5.0   
