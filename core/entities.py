@@ -162,7 +162,7 @@ class Ship(pg.sprite.Sprite):
             for offset in angles:
                 new_dir = angle_to_vec(self.angle + offset)
                 new_vel = self.vel + new_dir * (C.SHIP_BULLET_SPEED * 1.3)
-                bullet = Bullet(self.player_id, pos, new_vel, ttl=C.BULLET_TTL)
+                bullet = Bullet(self.player_id, pos, new_vel, ttl=C.BULLET_TTL)*0.6
                 bullets_created.append(bullet)
 
             return bullets_created
