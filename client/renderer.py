@@ -177,7 +177,7 @@ class Renderer:
         bar_y = 36
         bar_width = 120
 
-        x = bar_x + bar_width + 40  
+        x = bar_x + bar_width + 70  
         y = bar_y - 4               
 
         if ship.shotgun_active > 0:
