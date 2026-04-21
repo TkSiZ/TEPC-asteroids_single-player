@@ -45,7 +45,7 @@ class Renderer:
         lives: int,
         wave: int,
         state: SceneState,
-        ship = None
+        ship=None
     ) -> None:
         if state != SceneState.PLAY:
             return
@@ -56,6 +56,7 @@ class Renderer:
 
         if ship is not None:
             self._draw_shield_bar(ship)
+            self._draw_shotgun_status(ship)
 
     def draw_menu(self) -> None:
         self._draw_text(
@@ -149,24 +150,38 @@ class Renderer:
         pg.draw.ellipse(self.screen, self.config.WHITE, cup, width=1)
 
     def _draw_shield_bar(self, ship) -> None:
-        bar_x      = 10
-        bar_y      = 36        
-        bar_width  = 120
+        bar_x = 10
+        bar_y = 36
+        bar_width = 120
         bar_height = 8
 
         ratio = ship.shield_energy / self.config.SHIELD_MAX_ENERGY
-        fill  = int(bar_width * ratio)
+        fill = int(bar_width * ratio)
 
         pg.draw.rect(self.screen, (80, 80, 80),
-                    (bar_x, bar_y, bar_width, bar_height))
+                     (bar_x, bar_y, bar_width, bar_height))
 
         if fill > 0:
             color = self.config.WHITE if not ship.shield_active else (100, 180, 255)
             pg.draw.rect(self.screen, color,
-                        (bar_x, bar_y, fill, bar_height))
+                         (bar_x, bar_y, fill, bar_height))
 
         pg.draw.rect(self.screen, self.config.WHITE,
-                    (bar_x, bar_y, bar_width, bar_height), width=1)
+                     (bar_x, bar_y, bar_width, bar_height), width=1)
 
         label = self.font.render("SH", True, self.config.WHITE)
         self.screen.blit(label, (bar_x + bar_width + 6, bar_y - 4))
+
+    def _draw_shotgun_status(self, ship) -> None:
+        x = 10
+        y = 55
+
+        if ship.shotgun_active > 0:
+            text = "SG: ACTIVE"
+        elif ship.shotgun_available:
+            text = "SG: READY"
+        else:
+            text = "SG: USED"
+
+        label = self.font.render(text, True, self.config.WHITE)
+        self.screen.blit(label, (x, y))
