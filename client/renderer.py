@@ -173,15 +173,19 @@ class Renderer:
         self.screen.blit(label, (bar_x + bar_width + 6, bar_y - 4))
 
     def _draw_shotgun_status(self, ship) -> None:
-        x = 10
-        y = 55
+        bar_x = 10
+        bar_y = 36
+        bar_width = 120
+
+        x = bar_x + bar_width + 40  
+        y = bar_y - 4               
 
         if ship.shotgun_active > 0:
-            text = "SG: ACTIVE"
+            text = "SHOTGUN ACTIVE"
         elif ship.shotgun_available:
-            text = "SG: READY"
+            text = "SHOTGUN READY"
         else:
-            text = "SG: USED"
+            text = "SHOTGUN USED"
 
         label = self.font.render(text, True, self.config.WHITE)
         self.screen.blit(label, (x, y))
