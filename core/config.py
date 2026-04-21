@@ -53,6 +53,13 @@ UFO_FIRE_RATE_SMALL = 0.55
 UFO_BULLET_SPEED = 360.0
 UFO_BULLET_TTL = 1.3
 
+# Power ups constants 
+
+SHIELD_MAX_ENERGY     = 5.0   
+SHIELD_DRAIN_RATE     = 1.0   
+SHIELD_RECHARGE_RATE  = 0.4   
+SHIELD_MIN_ACTIVATE   = 0.5
+
 # Aim: small UFO is precise, big UFO is inaccurate.
 UFO_AIM_JITTER_DEG_BIG = 28.0
 UFO_AIM_JITTER_DEG_SMALL = 6.0
