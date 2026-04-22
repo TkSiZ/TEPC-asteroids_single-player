@@ -117,13 +117,22 @@ class Ship(pg.sprite.Sprite):
         self.powerup = None
         self.powerup_duration = 0
 
+        self.shotgun_active = False
+        self.shotgun_timer = 0.0
+        self.shotgun_available = True
+
     def apply_command(
         self,
         cmd: PlayerCommand,
         dt: float,
         bullets: pg.sprite.Group,
-    ) -> "Bullet | None":
+    ):
         
+        if cmd.activate_power and self.shotgun_available and not self.shotgun_active:
+            self.shotgun_active = True
+            self.shotgun_timer = 5.0
+            self.shotgun_available = False
+
         if cmd.shield and self.shield_energy >= C.SHIELD_MIN_ACTIVATE:
             self.shield_active = True
         else:
@@ -143,7 +152,7 @@ class Ship(pg.sprite.Sprite):
 
         return None
 
-    def _try_fire(self, bullets: pg.sprite.Group) -> "Bullet | None":
+    def _try_fire(self, bullets: pg.sprite.Group):
         if self.cool > 0.0:
             return None
 
@@ -156,11 +165,24 @@ class Ship(pg.sprite.Sprite):
             return None
 
         dirv = angle_to_vec(self.angle)
-        pos = self.pos + dirv * (self.r + C.BULLET_SPAWN_OFFSET)
-        vel = self.vel + dirv * C.SHIP_BULLET_SPEED
+        base_pos = self.pos + dirv * (self.r + C.BULLET_SPAWN_OFFSET)
 
         self.cool = float(C.SHIP_FIRE_RATE)
-        return Bullet(self.player_id, pos, vel, ttl=C.BULLET_TTL)
+
+        if self.shotgun_active:
+            bullets_list = []
+            angles = [-15, -5, 5, 15]
+
+            for ang in angles:
+                spread_dir = rotate_vec(dirv, ang)
+                vel = self.vel + spread_dir * C.SHIP_BULLET_SPEED
+                bullets_list.append(
+                    Bullet(self.player_id, base_pos, vel, ttl=C.BULLET_TTL * 0.6)
+                )
+            return bullets_list
+
+        vel = self.vel + dirv * C.SHIP_BULLET_SPEED
+        return Bullet(self.player_id, base_pos, vel, ttl=C.BULLET_TTL)
 
     def hyperspace(self) -> None:
         self.pos = Vec(uniform(0, C.WIDTH), uniform(0, C.HEIGHT))
@@ -185,12 +207,16 @@ class Ship(pg.sprite.Sprite):
             if self.invuln < 0.0:
                 self.invuln = 0.0
 
+        if self.shotgun_active:
+            self.shotgun_timer -= dt
+            if self.shotgun_timer <= 0:
+                self.shotgun_active = False
+
         self.pos += self.vel * dt
         self.pos = wrap_pos(self.pos)
         self.rect.center = (int(self.pos.x), int(self.pos.y))
 
     def ship_points(self) -> tuple[Vec, Vec, Vec]:
-        """Return the 3 vertices of the ship triangle."""
         dirv = angle_to_vec(self.angle)
         left = angle_to_vec(self.angle + C.SHIP_NOSE_ANGLE)
         right = angle_to_vec(self.angle - C.SHIP_NOSE_ANGLE)
@@ -199,7 +225,6 @@ class Ship(pg.sprite.Sprite):
         p2 = self.pos + left * self.r * C.SHIP_NOSE_SCALE
         p3 = self.pos + right * self.r * C.SHIP_NOSE_SCALE
         return p1, p2, p3
-
 
 class UFO(pg.sprite.Sprite):
     """UFO with two movement behaviors and shooting."""
