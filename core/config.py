@@ -64,7 +64,7 @@ BLACK_HOLE_INFLUENCE_RADIUS = 260    # max distance at which pull is applied
 BLACK_HOLE_PULL_STRENGTH = 900.0     # tuning constant for inverse-square pull
 BLACK_HOLE_MIN_SPAWN_DIST = 120      # min spawn distance from any ship
 BLACK_HOLE_MAX_FORCE = 1200.0        # cap on pull acceleration (px/s^2)
- 
+
 # Power ups constants 
 
 FREEZE_POWERUP_CHANCE = 0.1

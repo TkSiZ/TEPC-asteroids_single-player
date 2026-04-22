@@ -19,6 +19,7 @@ class EnumPowerUps(Enum):
     """File paths for power up images."""
 
     ONE_UP = os.path.join(C.IMAGES_PATH, "One_Up.png")
+    freeze = os.path.join(C.IMAGES_PATH, "One_Up.png") # Using One_Up as fallback since Freeze.png is missing
 
     @classmethod
     def _missing_(cls, value):
@@ -63,21 +64,49 @@ class Bullet(pg.sprite.Sprite):
 
 
 class PowerUp(pg.sprite.Sprite):
-    """Power-up that can be picked up by the player."""
+    """Collectible power-up."""
 
-    def __init__(self, pos: Vec, type: str = "freeze") -> None:
+    def __init__(self, pos: Vec, power_up_type: str = "freeze"):
         super().__init__()
         self.pos = Vec(pos)
-        self.type = type
+        self.type = power_up_type
+        
+        # Load image from Enum, fallback to Missing.png if everything fails
+        try:
+            image_path = EnumPowerUps[self.type].value
+            if not os.path.exists(image_path):
+                image_path = os.path.join(C.IMAGES_PATH, "Missing.png")
+            self.image = pg.image.load(image_path).convert_alpha()
+        except (KeyError, pg.error):
+            self.image = pg.image.load(os.path.join(C.IMAGES_PATH, "Missing.png")).convert_alpha()
+
+        self.rect = self.image.get_rect()
+        self.rect.center = (int(self.pos.x), int(self.pos.y))
+        
         self.ttl = float(C.FREEZE_POWERUP_TTL)
         self.r = int(C.FREEZE_POWERUP_RADIUS)
-        self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
+        self.idle_time = 1.0
+        self.state = "down"
 
-    def update(self, dt: float) -> None:
+    def update(self, dt: float):
+        """Animate the power up (gentle bob) and handle TTL."""
         self.ttl -= dt
         if self.ttl <= 0.0:
             self.kill()
             return
+
+        if self.idle_time > 0:
+            self.idle_time -= dt
+        else:
+            if self.state == "down":
+                self.pos.y -= 5
+                self.state = "up"
+            elif self.state == "up":
+                self.pos.y += 5
+                self.state = "down"
+            self.idle_time = 1.0
+
+        self.pos = wrap_pos(self.pos)
         self.rect.center = (int(self.pos.x), int(self.pos.y))
 
 
@@ -365,35 +394,6 @@ class UFO(pg.sprite.Sprite):
         return Bullet(UFO_BULLET_OWNER, self.pos, vel, ttl=ttl)
 
 
-class PowerUp(pg.sprite.Sprite):
-    """Collectible power-up."""
-
-    def __init__(self, pos: Vec, power_up_type: str):
-        super().__init__()
-        self.pos = Vec(pos)
-        self.type = power_up_type
-        self.image = pg.image.load(EnumPowerUps[self.type].value).convert_alpha()
-        self.rect = self.image.get_rect()
-        self.rect.topleft = (int(self.pos.x), int(self.pos.y))
-        self.idle_time = 1
-        self.state = "down"  # just for idle animation
-
-    def update(self, dt: float):
-        """Animate the power up (gentle bob)."""
-        if self.idle_time > 0:
-            self.idle_time -= dt
-            return
-
-        if self.state == "down":
-            self.pos.y -= 5
-            self.state = "up"
-        elif self.state == "up":
-            self.pos.y += 5
-            self.state = "down"
-
-        self.idle_time = 1
-        self.pos = wrap_pos(self.pos)
-        self.rect.topleft = (int(self.pos.x), int(self.pos.y))
 class BlackHole(pg.sprite.Sprite):
     """Black hole hazard.
 

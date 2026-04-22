@@ -157,11 +157,12 @@ class World:
 
         self._apply_commands(dt, commands_by_player_id)
         
-        # Update ships, bullets and powerups always
+        # Update ships, bullets, powerups and black holes always
         for ship in self.ships.values():
             ship.update(dt)
         self.bullets.update(dt)
         self.powerups.update(dt)
+        self.black_holes.update(dt)
 
         if self.freeze_timer > 0.0:
             self.freeze_timer -= dt
@@ -172,7 +173,6 @@ class World:
             self._update_ufos(dt)
             
         self._apply_black_hole_pull(dt)
-        self.all_sprites.update(dt)
 
         self._update_timers(dt)
         self._handle_collisions()
@@ -289,11 +289,6 @@ class World:
         for pos, type in result.powerups_to_spawn:
             self.spawn_powerup(pos, type)
 
-        for player_id, type in result.powerup_collected:
-            if type == "freeze":
-                self.freeze_timer = float(C.FREEZE_POWERUP_DURATION)
-                self.events.append("powerup_collect")
-
         for player_id in result.ship_deaths:
             ship = self.get_ship(player_id)
             if ship is not None:
@@ -321,6 +316,9 @@ class World:
         if powerup_type == "ONE_UP":
             pid = ship.player_id
             self.lives[pid] += 1
+        elif powerup_type == "freeze":
+            self.freeze_timer = float(C.FREEZE_POWERUP_DURATION)
+            self.events.append("powerup_collect")
 
     def _ship_die_instant(self, ship: Ship) -> None:
         """Instant Game Over: remaining lives are forfeit (black hole)."""
