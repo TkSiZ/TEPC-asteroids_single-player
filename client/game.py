@@ -1,12 +1,6 @@
-"""Game loop and scenes (menu, play, game over).
-
-- InputMapper converts keyboard input into PlayerCommand.
-- World updates the simulation and generates events (strings) for Game.
-- Game handles audio and screen transitions (low coupling).
-"""
+"""Game loop and scenes (menu, play, game over)."""
 
 import sys
-
 import pygame as pg
 
 from core import config as C
@@ -27,7 +21,7 @@ class Game:
         pg.mixer.init()
 
         self.screen = pg.display.set_mode((C.WIDTH, C.HEIGHT))
-        pg.display.set_caption("Asteroids")
+        pg.display.set_caption("Asteroids Multiplayer")
 
         self.clock = pg.time.Clock()
         self.running = True
@@ -46,6 +40,7 @@ class Game:
 
         self.sounds = load_sounds(C.SOUND_PATH)
         self.audio = AudioManager(self.sounds)
+        self.p2_active_negative = False
 
     def run(self) -> None:
         while self.running:
@@ -62,15 +57,30 @@ class Game:
                 self._quit()
 
             if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-                self._quit()
+                if self.scene == SceneState.PLAY:
+                    self.scene = SceneState.PAUSE
+                elif self.scene == SceneState.PAUSE:
+                    self.scene = SceneState.PLAY
+                else:
+                    self._quit()
 
             if self.scene == SceneState.MENU:
-                if event.type == pg.KEYDOWN:
+                if event.type == pg.KEYDOWN or event.type == pg.JOYBUTTONDOWN:
                     self.scene = SceneState.PLAY
                 continue
 
-            if self.scene == SceneState.GAME_OVER:
+            if self.scene == SceneState.PAUSE:
                 if event.type == pg.KEYDOWN:
+                    if event.key == pg.K_1:
+                        self.world.mechanics_enabled["swap"] = not self.world.mechanics_enabled["swap"]
+                    elif event.key == pg.K_2:
+                        self.world.mechanics_enabled["confusion"] = not self.world.mechanics_enabled["confusion"]
+                    elif event.key == pg.K_3:
+                        self.world.mechanics_enabled["gravity_bomb"] = not self.world.mechanics_enabled["gravity_bomb"]
+                continue
+
+            if self.scene == SceneState.GAME_OVER:
+                if event.type == pg.KEYDOWN or event.type == pg.JOYBUTTONDOWN:
                     self.world.reset()
                     self.scene = SceneState.PLAY
                 continue
@@ -83,9 +93,7 @@ class Game:
             return
 
         keys = pg.key.get_pressed()
-        cmd = self.input_mapper.build_command(keys)
-        commands = {C.LOCAL_PLAYER_ID: cmd}
-
+        commands = self.input_mapper.build_commands(keys)
         self.world.update(dt, commands)
 
         if self.world.game_over:
@@ -93,7 +101,10 @@ class Game:
             self.scene = SceneState.GAME_OVER
             return
 
-        self.audio.update_thrust(cmd.thrust)
+        p1_cmd = commands.get(C.LOCAL_PLAYER_ID)
+        if p1_cmd:
+            self.audio.update_thrust(p1_cmd.thrust)
+            
         self.audio.update_ufo_siren(list(self.world.ufos))
         self.audio.play_events(self.world.events)
 
@@ -102,23 +113,15 @@ class Game:
 
         if self.scene == SceneState.MENU:
             self.renderer.draw_menu()
-            pg.display.flip()
-            return
-
-        if self.scene == SceneState.GAME_OVER:
+        elif self.scene == SceneState.GAME_OVER:
             self.renderer.draw_game_over()
-            pg.display.flip()
-            return
+        elif self.scene == SceneState.PAUSE:
+            self.renderer.draw_world(self.world)
+            self.renderer.draw_pause(self.world)
+        else:
+            self.renderer.draw_world(self.world)
+            self.renderer.draw_hud(self.world, self.scene)
 
-        self.renderer.draw_world(self.world)
-        self.renderer.draw_hud(
-            self.world.scores.get(C.LOCAL_PLAYER_ID, 0),
-            self.world.lives.get(C.LOCAL_PLAYER_ID, 0),
-            self.world.wave,
-            self.scene,
-            ship=self.world.get_ship(C.LOCAL_PLAYER_ID),
-            freeze_timer=self.world.freeze_timer,
-        )
         pg.display.flip()
 
     def _quit(self) -> None:

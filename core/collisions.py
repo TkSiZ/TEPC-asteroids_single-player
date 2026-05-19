@@ -43,11 +43,31 @@ class CollisionManager:
         self._ufo_vs_asteroids(ufos, asteroids, result)
         self._ship_vs_asteroids(ships, asteroids, result)
         self._ship_vs_ufo_bullets(ships, bullets, result)
+        self._ship_vs_player_bullets(ships, bullets, result)
         if powerups is not None:
             self._ship_vs_powerup(ships, powerups, result)
         if black_holes is not None:
             self._ship_vs_black_holes(ships, black_holes, result)
         return result
+
+    def _ship_vs_player_bullets(
+        self,
+        ships: dict[PlayerId, Ship],
+        bullets: pg.sprite.Group,
+        result: CollisionResult,
+    ) -> None:
+        """Handle friendly fire for confusion status."""
+        for ship in ships.values():
+            for bullet in list(bullets):
+                if bullet.owner_id == ship.player_id or bullet.owner_id == UFO_BULLET_OWNER:
+                    continue
+                # If bullet is from another player
+                if (bullet.pos - ship.pos).length() < (bullet.r + ship.r):
+                    bullet.kill()
+                    # Apply confusion status to the ship
+                    ship.confused_timer = C.CONFUSION_DURATION
+                    result.events.append("powerup_got") # Placeholder sound
+                    return
 
     def _ship_vs_powerups(
         self,

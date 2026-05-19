@@ -44,6 +44,7 @@ class Bullet(pg.sprite.Sprite):
         pos: Vec,
         vel: Vec,
         ttl: float = C.BULLET_TTL,
+        is_confusion: bool = False,
     ) -> None:
         super().__init__()
         self.owner_id = owner_id
@@ -51,6 +52,7 @@ class Bullet(pg.sprite.Sprite):
         self.vel = Vec(vel)
         self.ttl = float(ttl)
         self.r = int(C.BULLET_RADIUS)
+        self.is_confusion = is_confusion
         self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
 
     def update(self, dt: float) -> None:
@@ -165,6 +167,11 @@ class Ship(pg.sprite.Sprite):
         self.shotgun_active = False
         self.shotgun_timer = 0.0
         self.shotgun_available = True
+        
+        # New Multiplayer Mechanics State
+        self.confused_timer = 0.0
+        self.swap_warmup = 0.0
+        self.swap_target_pos = None
 
     def apply_command(
         self,
@@ -172,20 +179,18 @@ class Ship(pg.sprite.Sprite):
         dt: float,
         bullets: pg.sprite.Group,
     ):
-        
-        if cmd.activate_power and self.shotgun_available and not self.shotgun_active:
-            self.shotgun_active = True
-            self.shotgun_timer = 5.0
-            self.shotgun_available = False
-
         if cmd.shield and self.shield_energy >= C.SHIELD_MIN_ACTIVATE:
             self.shield_active = True
         else:
             self.shield_active = False
+            
+        # Invert rotation if confused
+        rot_mult = -1.0 if self.confused_timer > 0.0 else 1.0
+        
         if cmd.rotate_left and not cmd.rotate_right:
-            self.angle -= C.SHIP_TURN_SPEED * dt
+            self.angle -= C.SHIP_TURN_SPEED * dt * rot_mult
         elif cmd.rotate_right and not cmd.rotate_left:
-            self.angle += C.SHIP_TURN_SPEED * dt
+            self.angle += C.SHIP_TURN_SPEED * dt * rot_mult
 
         if cmd.thrust:
             self.vel += angle_to_vec(self.angle) * C.SHIP_THRUST * dt
@@ -214,18 +219,6 @@ class Ship(pg.sprite.Sprite):
 
         self.cool = float(C.SHIP_FIRE_RATE)
 
-        if self.shotgun_active:
-            bullets_list = []
-            angles = [-15, -5, 5, 15]
-
-            for ang in angles:
-                spread_dir = rotate_vec(dirv, ang)
-                vel = self.vel + spread_dir * C.SHIP_BULLET_SPEED
-                bullets_list.append(
-                    Bullet(self.player_id, base_pos, vel, ttl=C.BULLET_TTL * 0.6)
-                )
-            return bullets_list
-
         vel = self.vel + dirv * C.SHIP_BULLET_SPEED
         return Bullet(self.player_id, base_pos, vel, ttl=C.BULLET_TTL)
 
@@ -251,11 +244,12 @@ class Ship(pg.sprite.Sprite):
             self.invuln -= dt
             if self.invuln < 0.0:
                 self.invuln = 0.0
-
-        if self.shotgun_active:
-            self.shotgun_timer -= dt
-            if self.shotgun_timer <= 0:
-                self.shotgun_active = False
+                
+        if self.confused_timer > 0.0:
+            self.confused_timer -= dt
+            
+        if self.swap_warmup > 0.0:
+            self.swap_warmup -= dt
 
         self.pos += self.vel * dt
         self.pos = wrap_pos(self.pos)
@@ -429,13 +423,21 @@ class BlackHole(pg.sprite.Sprite):
     - Touching it (within event-horizon radius) is instant Game Over.
     """
 
-    def __init__(self, pos: Vec, lifetime: float) -> None:
+    def __init__(self, pos: Vec, lifetime: float, is_mini: bool = False, owner_id: PlayerId | None = None) -> None:
         super().__init__()
         self.pos = Vec(pos)
         self.lifetime = float(lifetime)
         self.age = 0.0
-        self.r = int(C.BLACK_HOLE_RADIUS)
-        self.influence_r = float(C.BLACK_HOLE_INFLUENCE_RADIUS)
+        self.is_mini = is_mini
+        self.owner_id = owner_id
+        
+        if is_mini:
+            self.r = int(C.MINI_BH_RADIUS)
+            self.influence_r = float(C.MINI_BH_INFLUENCE_RADIUS)
+        else:
+            self.r = int(C.BLACK_HOLE_RADIUS)
+            self.influence_r = float(C.BLACK_HOLE_INFLUENCE_RADIUS)
+            
         self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
         self.rect.center = (int(self.pos.x), int(self.pos.y))
 
@@ -446,13 +448,11 @@ class BlackHole(pg.sprite.Sprite):
             return
         self.rect.center = (int(self.pos.x), int(self.pos.y))
 
-    def pull_acceleration(self, target_pos: Vec) -> Vec:
-        """Return the acceleration vector the black hole applies on a point.
-
-        Force grows as the target approaches, following an inverse-square-like
-        falloff, capped at BLACK_HOLE_MAX_FORCE. Returns a zero vector if the
-        target is outside the influence radius.
-        """
+    def pull_acceleration(self, target_pos: Vec, target_id: PlayerId | None = None) -> Vec:
+        """Return the acceleration vector the black hole applies on a point."""
+        if self.is_mini and target_id == self.owner_id:
+            return Vec(0, 0)
+            
         to_hole = self.pos - target_pos
         dist = to_hole.length()
 
